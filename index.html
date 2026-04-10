@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ASCII Webcam</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: rgba(255,255,255,0.06);
+    --text: #e0e0e0;
+    --muted: #666;
+    --accent: #10b981;
+  }
+  
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    transition: background 0.3s, color 0.3s;
+  }
+  
+  body.light {
+    --bg: #f8f9fa;
+    --surface: #fff;
+    --border: rgba(0,0,0,0.08);
+    --text: #1a1a2e;
+    --muted: #888;
+  }
+  
+  /* Top bar */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  
+  .logo {
+    font-size: 16px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .logo-badge {
+    background: var(--accent);
+    color: #000;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  
+  .ctrl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .ctrl-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  
+  select, .btn {
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.15s;
+  }
+  
+  select:hover, .btn:hover { border-color: rgba(255,255,255,0.15); }
+  
+  .btn-active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    font-weight: 600;
+  }
+  
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100px;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    outline: none;
+  }
+  
+  body.light input[type="range"] { background: rgba(0,0,0,0.1); }
+  
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+  
+  /* Main */
+  .main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+  }
+  
+  video {
+    display: none;
+  }
+  
+  #asciiOutput {
+    font-family: 'Courier New', monospace;
+    white-space: pre;
+    line-height: 1;
+    letter-spacing: 0px;
+    font-size: 8px;
+    text-align: center;
+    overflow: hidden;
+    user-select: all;
+    transition: font-size 0.2s;
+  }
+  
+  body.light #asciiOutput {
+    color: #1a1a2e;
+  }
+  
+  /* Start screen */
+  .start-screen {
+    text-align: center;
+  }
+  
+  .start-screen h2 {
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  
+  .start-screen p {
+    color: var(--muted);
+    font-size: 16px;
+    margin-bottom: 32px;
+  }
+  
+  .start-btn {
+    padding: 14px 32px;
+    background: var(--accent);
+    border: none;
+    border-radius: 12px;
+    color: #000;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  
+  .start-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(16, 185, 129, 0.3);
+  }
+  
+  /* FPS */
+  .fps {
+    position: fixed;
+    bottom: 12px;
+    right: 16px;
+    font-size: 12px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  
+  .error-msg {
+    color: #ef4444;
+    text-align: center;
+    padding: 40px;
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar" id="toolbar" style="display: none;">
+  <div class="logo">
+    ASCII Webcam
+    <span class="logo-badge">LIVE</span>
+  </div>
+  
+  <div class="controls">
+    <div class="ctrl">
+      <span class="ctrl-label">Resolution</span>
+      <input type="range" id="resolution" min="40" max="200" value="100">
+      <span class="ctrl-label" id="resVal">100</span>
+    </div>
+    
+    <div class="ctrl">
+      <span class="ctrl-label">Chars</span>
+      <select id="charRamp">
+        <option value="simple">Simple</option>
+        <option value="detailed" selected>Detailed</option>
+        <option value="blocks">Blocks</option>
+        <option value="minimal">Minimal</option>
+      </select>
+    </div>
+    
+    <div class="ctrl">
+      <button class="btn btn-active" id="colorBtn" onclick="toggleColor()">Color</button>
+    </div>
+    
+    <div class="ctrl">
+      <button class="btn" id="invertBtn" onclick="toggleInvert()">Invert</button>
+    </div>
+    
+    <div class="ctrl">
+      <button class="btn" id="themeBtn" onclick="toggleTheme()">☀ Light</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="start-screen" id="startScreen">
+    <h2>📹 → ASCII</h2>
+    <p>Your webcam, rendered in text characters in real-time.</p>
+    <button class="start-btn" onclick="startWebcam()">Start Camera</button>
+  </div>
+  
+  <pre id="asciiOutput" style="display: none;"></pre>
+</div>
+
+<video id="video" autoplay playsinline></video>
+<canvas id="hiddenCanvas" style="display:none;"></canvas>
+
+<div class="fps" id="fps"></div>
+
+<script>
+const video = document.getElementById('video');
+const hiddenCanvas = document.getElementById('hiddenCanvas');
+const hCtx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
+const output = document.getElementById('asciiOutput');
+
+const charRamps = {
+  simple:   ' .:-=+*#%@',
+  detailed: ' .\'`^",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$',
+  blocks:   ' ░▒▓█',
+  minimal:  ' .:░▓█'
+};
+
+let colorMode = true;
+let invertMode = false;
+let lightTheme = false;
+let running = false;
+let cols = 100;
+
+let lastTime = performance.now();
+let frameCount = 0;
+
+async function startWebcam() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
+    });
+    
+    video.srcObject = stream;
+    await video.play();
+    
+    document.getElementById('startScreen').style.display = 'none';
+    document.getElementById('toolbar').style.display = '';
+    output.style.display = '';
+    
+    running = true;
+    requestAnimationFrame(render);
+    
+  } catch (err) {
+    document.getElementById('startScreen').innerHTML = `
+      <div class="error-msg">
+        <p>📹 Camera access denied or unavailable.</p>
+        <p style="font-size: 14px; margin-top: 12px; color: var(--muted);">
+          Please allow camera access and reload the page.
+        </p>
+      </div>
+    `;
+  }
+}
+
+function render() {
+  if (!running) return;
+  
+  const ramp = charRamps[document.getElementById('charRamp').value];
+  cols = parseInt(document.getElementById('resolution').value);
+  
+  const vw = video.videoWidth;
+  const vh = video.videoHeight;
+  if (vw === 0 || vh === 0) {
+    requestAnimationFrame(render);
+    return;
+  }
+  
+  // Char aspect ratio correction (chars are ~2x taller than wide)
+  const aspect = vw / vh;
+  const rows = Math.floor(cols / aspect * 0.5);
+  
+  hiddenCanvas.width = cols;
+  hiddenCanvas.height = rows;
+  
+  // Mirror horizontally for selfie effect
+  hCtx.save();
+  hCtx.translate(cols, 0);
+  hCtx.scale(-1, 1);
+  hCtx.drawImage(video, 0, 0, cols, rows);
+  hCtx.restore();
+  
+  const imageData = hCtx.getImageData(0, 0, cols, rows);
+  const pixels = imageData.data;
+  
+  let ascii = '';
+  
+  if (colorMode) {
+    // Color mode with spans
+    let html = '';
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const idx = (y * cols + x) * 4;
+        let r = pixels[idx], g = pixels[idx+1], b = pixels[idx+2];
+        
+        const brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        const adjustedBrightness = invertMode ? 1 - brightness : brightness;
+        
+        const charIdx = Math.floor(adjustedBrightness * (ramp.length - 1));
+        const ch = ramp[charIdx] === ' ' ? '&nbsp;' : escapeHtml(ramp[charIdx]);
+        
+        html += `<span style="color:rgb(${r},${g},${b})">${ch}</span>`;
+      }
+      html += '\n';
+    }
+    output.innerHTML = html;
+  } else {
+    // Monochrome mode
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const idx = (y * cols + x) * 4;
+        const brightness = (0.299 * pixels[idx] + 0.587 * pixels[idx+1] + 0.114 * pixels[idx+2]) / 255;
+        const adjustedBrightness = invertMode ? 1 - brightness : brightness;
+        const charIdx = Math.floor(adjustedBrightness * (ramp.length - 1));
+        ascii += ramp[charIdx];
+      }
+      ascii += '\n';
+    }
+    output.textContent = ascii;
+  }
+  
+  // FPS counter
+  frameCount++;
+  const now = performance.now();
+  if (now - lastTime >= 1000) {
+    document.getElementById('fps').textContent = `${frameCount} FPS`;
+    frameCount = 0;
+    lastTime = now;
+  }
+  
+  // Adjust font size to fit
+  const mainEl = document.querySelector('.main');
+  const maxW = mainEl.clientWidth - 20;
+  const charW = maxW / cols;
+  output.style.fontSize = Math.max(3, Math.min(14, charW)) + 'px';
+  output.style.lineHeight = Math.max(3, Math.min(14, charW)) * 0.95 + 'px';
+  
+  requestAnimationFrame(render);
+}
+
+function escapeHtml(c) {
+  if (c === '<') return '&lt;';
+  if (c === '>') return '&gt;';
+  if (c === '&') return '&amp;';
+  return c;
+}
+
+function toggleColor() {
+  colorMode = !colorMode;
+  const btn = document.getElementById('colorBtn');
+  btn.classList.toggle('btn-active', colorMode);
+  btn.textContent = colorMode ? 'Color' : 'Mono';
+}
+
+function toggleInvert() {
+  invertMode = !invertMode;
+  const btn = document.getElementById('invertBtn');
+  btn.classList.toggle('btn-active', invertMode);
+}
+
+function toggleTheme() {
+  lightTheme = !lightTheme;
+  document.body.classList.toggle('light', lightTheme);
+  document.getElementById('themeBtn').textContent = lightTheme ? '🌙 Dark' : '☀ Light';
+}
+
+document.getElementById('resolution').addEventListener('input', e => {
+  document.getElementById('resVal').textContent = e.target.value;
+});
+</script>
+</body>
+</html>
