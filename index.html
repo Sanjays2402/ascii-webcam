@@ -3,431 +3,131 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ASCII Webcam</title>
+<title>ASCII Webcam — real-time text portrait</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📹</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-  
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  
-  :root {
-    --bg: #0a0a0f;
-    --surface: #111118;
-    --border: rgba(255,255,255,0.06);
-    --text: #e0e0e0;
-    --muted: #666;
-    --accent: #10b981;
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{
+    --bg:#05050a;--surface:rgba(17,17,24,.72);--border:rgba(255,255,255,.08);
+    --text:#e7e7ee;--muted:#8a8aa0;--accent:#10b981;--accent2:#8b5cf6;--danger:#ef4444;
   }
+  body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;transition:background .3s;-webkit-font-smoothing:antialiased;user-select:none;overflow:hidden}
+  body.light{--bg:#f8f9fa;--surface:rgba(255,255,255,.85);--border:rgba(0,0,0,.08);--text:#1a1a2e;--muted:#777}
   
-  body {
-    font-family: 'Inter', system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    transition: background 0.3s, color 0.3s;
-  }
+  /* Animated aurora background */
+  body::before{content:'';position:fixed;inset:-30%;background:radial-gradient(circle at 30% 20%, rgba(139,92,246,.18), transparent 50%), radial-gradient(circle at 70% 80%, rgba(236,72,153,.15), transparent 50%), radial-gradient(circle at 50% 50%, rgba(16,185,129,.10), transparent 60%);z-index:-1;animation:aurora 20s ease-in-out infinite;pointer-events:none;filter:blur(40px)}
+  @keyframes aurora{0%,100%{transform:rotate(0) scale(1)}50%{transform:rotate(4deg) scale(1.06)}}
+  body.light::before{opacity:.4}
   
-  body.light {
-    --bg: #f8f9fa;
-    --surface: #fff;
-    --border: rgba(0,0,0,0.08);
-    --text: #1a1a2e;
-    --muted: #888;
-  }
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--border);background:var(--surface);backdrop-filter:blur(20px) saturate(140%);flex-wrap:wrap;gap:12px;position:relative;z-index:5}
+  .logo{font-size:14px;font-weight:700;display:flex;align-items:center;gap:10px;letter-spacing:-.01em}
+  .logo .mark{font-size:20px;filter:drop-shadow(0 0 8px rgba(16,185,129,.5))}
+  .logo-badge{background:linear-gradient(135deg,var(--accent),#059669);color:#000;padding:3px 8px;border-radius:6px;font-size:9.5px;font-weight:700;letter-spacing:.08em;box-shadow:0 0 10px rgba(16,185,129,.5);animation:pulse 2s ease-in-out infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 10px rgba(16,185,129,.5)}50%{box-shadow:0 0 18px rgba(16,185,129,.8)}}
   
-  /* Top bar */
-  .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 24px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    flex-wrap: wrap;
-    gap: 12px;
-  }
+  .controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .ctrl{display:flex;align-items:center;gap:6px}
+  .ctrl-label{font-size:10.5px;color:var(--muted);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+  .ctrl-val{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);font-weight:600;min-width:28px;text-align:center}
   
-  .logo {
-    font-size: 16px;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+  select,.btn{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:rgba(255,255,255,.03);color:var(--text);font-size:12px;font-family:inherit;cursor:pointer;outline:none;transition:.15s;font-weight:500}
+  select:hover,.btn:hover{background:rgba(255,255,255,.08);border-color:rgba(139,92,246,.3)}
+  .btn-active{background:linear-gradient(135deg,rgba(16,185,129,.2),rgba(139,92,246,.15))!important;color:var(--accent);border-color:rgba(16,185,129,.4)!important;box-shadow:0 0 12px rgba(16,185,129,.2)}
   
-  .logo-badge {
-    background: var(--accent);
-    color: #000;
-    padding: 3px 8px;
-    border-radius: 6px;
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-  }
+  input[type=range]{-webkit-appearance:none;background:transparent;width:90px;outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;background:rgba(255,255,255,.08);border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:50%;margin-top:-5px;cursor:pointer;box-shadow:0 0 10px rgba(16,185,129,.5)}
   
-  .controls {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-  }
+  .main{flex:1;display:flex;align-items:center;justify-content:center;padding:14px;position:relative}
   
-  .ctrl {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+  .start-screen{text-align:center;max-width:480px;padding:40px}
+  .start-screen h2{font-size:52px;font-weight:300;letter-spacing:-.04em;margin-bottom:18px}
+  .start-screen h2 .grad{font-weight:700;background:linear-gradient(135deg,#10b981,#8b5cf6 60%,#ec4899);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;background-size:200% 100%;animation:shimmer 4s linear infinite}
+  @keyframes shimmer{to{background-position:-200% 0}}
+  .start-screen p{font-size:14.5px;color:var(--muted);margin-bottom:28px;line-height:1.6}
+  .start-btn{padding:15px 42px;background:linear-gradient(135deg,var(--accent) 0%,var(--accent2) 100%);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;transition:.2s;box-shadow:0 8px 24px rgba(16,185,129,.35);letter-spacing:.01em}
+  .start-btn:hover{transform:translateY(-2px);box-shadow:0 16px 40px rgba(16,185,129,.5)}
+  .start-btn:active{transform:translateY(0)}
+  .kbd-hints{margin-top:30px;font-size:11px;color:var(--muted);letter-spacing:.02em}
+  kbd{display:inline-block;padding:2px 6px;border-radius:4px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);font-family:'JetBrains Mono',monospace;font-size:10px;color:#cfcfdb;margin:0 2px}
+  .error-msg{color:var(--danger);text-align:center;padding:40px;font-size:15px}
   
-  .ctrl-label {
-    font-size: 12px;
-    color: var(--muted);
-    font-weight: 500;
-  }
+  #asciiOutput{font-family:'JetBrains Mono','Monaco','Menlo',monospace;white-space:pre;line-height:1;letter-spacing:0;font-weight:500;text-align:center;will-change:contents;text-shadow:0 0 1px currentColor}
   
-  select, .btn {
-    padding: 6px 12px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface);
-    color: var(--text);
-    font-size: 13px;
-    font-family: inherit;
-    cursor: pointer;
-    outline: none;
-    transition: all 0.15s;
-  }
+  #video{display:none}
   
-  select:hover, .btn:hover { border-color: rgba(255,255,255,0.15); }
+  .hud{position:fixed;top:62px;right:14px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--muted);background:var(--surface);backdrop-filter:blur(12px);padding:6px 10px;border-radius:8px;border:1px solid var(--border);display:flex;gap:12px;align-items:center;z-index:4}
+  .hud .stat{display:flex;flex-direction:column;align-items:center;gap:1px}
+  .hud .stat b{color:var(--accent);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+  .hud .stat span{font-size:9px;color:var(--muted);letter-spacing:.06em}
   
-  .btn-active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #000;
-    font-weight: 600;
-  }
+  .toast{position:fixed;bottom:20px;left:50%;transform:translate(-50%,10px);background:rgba(10,10,15,.92);backdrop-filter:blur(16px);border:1px solid rgba(16,185,129,.4);color:#d1fae5;padding:9px 16px;border-radius:10px;font-size:12.5px;font-weight:500;opacity:0;pointer-events:none;transition:.25s cubic-bezier(.2,.8,.2,1);z-index:20;box-shadow:0 12px 32px rgba(0,0,0,.5)}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
   
-  input[type="range"] {
-    -webkit-appearance: none;
-    width: 100px;
-    height: 4px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 2px;
-    outline: none;
-  }
+  .hidden-ui .topbar, .hidden-ui .hud{opacity:0;transform:translateY(-8px);pointer-events:none;transition:.3s}
   
-  body.light input[type="range"] { background: rgba(0,0,0,0.1); }
+  .recording-dot{position:fixed;top:16px;right:18px;width:10px;height:10px;border-radius:50%;background:var(--danger);box-shadow:0 0 12px var(--danger);animation:rec 1s ease-in-out infinite;display:none;z-index:10}
+  .recording-dot.show{display:block}
+  @keyframes rec{0%,100%{opacity:1}50%{opacity:.3}}
   
-  input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--accent);
-    cursor: pointer;
-  }
-  
-  /* Main */
-  .main {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-    position: relative;
-  }
-  
-  video {
-    display: none;
-  }
-  
-  #asciiOutput {
-    font-family: 'Courier New', monospace;
-    white-space: pre;
-    line-height: 1;
-    letter-spacing: 0px;
-    font-size: 8px;
-    text-align: center;
-    overflow: hidden;
-    user-select: all;
-    transition: font-size 0.2s;
-  }
-  
-  body.light #asciiOutput {
-    color: #1a1a2e;
-  }
-  
-  /* Start screen */
-  .start-screen {
-    text-align: center;
-  }
-  
-  .start-screen h2 {
-    font-size: 32px;
-    font-weight: 700;
-    margin-bottom: 12px;
-  }
-  
-  .start-screen p {
-    color: var(--muted);
-    font-size: 16px;
-    margin-bottom: 32px;
-  }
-  
-  .start-btn {
-    padding: 14px 32px;
-    background: var(--accent);
-    border: none;
-    border-radius: 12px;
-    color: #000;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    font-family: inherit;
-    transition: transform 0.2s, box-shadow 0.2s;
-  }
-  
-  .start-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(16, 185, 129, 0.3);
-  }
-  
-  /* FPS */
-  .fps {
-    position: fixed;
-    bottom: 12px;
-    right: 16px;
-    font-size: 12px;
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-  
-  .error-msg {
-    color: #ef4444;
-    text-align: center;
-    padding: 40px;
-    font-size: 16px;
+  @media(max-width:720px){
+    .topbar{padding:8px 12px;gap:8px}
+    .controls{gap:6px}
+    .ctrl-label{display:none}
+    input[type=range]{width:60px}
   }
 </style>
 </head>
 <body>
 
-<div class="topbar" id="toolbar" style="display: none;">
-  <div class="logo">
-    ASCII Webcam
-    <span class="logo-badge">LIVE</span>
-  </div>
-  
+<div class="topbar" id="toolbar" style="display:none">
+  <div class="logo"><span class="mark">📹</span>ASCII Webcam<span class="logo-badge">LIVE</span></div>
   <div class="controls">
-    <div class="ctrl">
-      <span class="ctrl-label">Resolution</span>
-      <input type="range" id="resolution" min="40" max="200" value="100">
-      <span class="ctrl-label" id="resVal">100</span>
-    </div>
-    
-    <div class="ctrl">
-      <span class="ctrl-label">Chars</span>
-      <select id="charRamp">
-        <option value="simple">Simple</option>
-        <option value="detailed" selected>Detailed</option>
-        <option value="blocks">Blocks</option>
-        <option value="minimal">Minimal</option>
-      </select>
-    </div>
-    
-    <div class="ctrl">
-      <button class="btn btn-active" id="colorBtn" onclick="toggleColor()">Color</button>
-    </div>
-    
-    <div class="ctrl">
-      <button class="btn" id="invertBtn" onclick="toggleInvert()">Invert</button>
-    </div>
-    
-    <div class="ctrl">
-      <button class="btn" id="themeBtn" onclick="toggleTheme()">☀ Light</button>
-    </div>
+    <div class="ctrl"><span class="ctrl-label">Res</span><input type="range" id="resolution" min="40" max="240" value="120"><span class="ctrl-val" id="resVal">120</span></div>
+    <div class="ctrl"><span class="ctrl-label">Chars</span><select id="charRamp">
+      <option value="simple">Simple</option><option value="detailed" selected>Detailed</option>
+      <option value="blocks">Blocks</option><option value="minimal">Minimal</option>
+      <option value="binary">Binary 01</option><option value="braille">Braille</option>
+    </select></div>
+    <div class="ctrl"><span class="ctrl-label">Effect</span><select id="effect">
+      <option value="none">None</option><option value="edge">Edges</option>
+      <option value="posterize">Posterize</option><option value="matrix">Matrix rain</option>
+    </select></div>
+    <div class="ctrl"><button class="btn btn-active" id="colorBtn">🎨 Color</button></div>
+    <div class="ctrl"><button class="btn" id="invertBtn">◐ Invert</button></div>
+    <div class="ctrl"><button class="btn" id="snapBtn" title="Screenshot (S)">📸</button></div>
+    <div class="ctrl"><button class="btn" id="copyBtn" title="Copy ASCII (C)">📋</button></div>
+    <div class="ctrl"><button class="btn" id="recBtn" title="Record (R)">⏺</button></div>
+    <div class="ctrl"><button class="btn" id="fsBtn" title="Fullscreen (F)">⛶</button></div>
+    <div class="ctrl"><button class="btn" id="themeBtn" title="Toggle theme (T)">☀</button></div>
   </div>
 </div>
+
+<div class="hud" id="hud" style="display:none">
+  <div class="stat"><b id="fps">—</b><span>FPS</span></div>
+  <div class="stat"><b id="chars">—</b><span>CHARS</span></div>
+  <div class="stat"><b id="res">—</b><span>COLS</span></div>
+</div>
+
+<div class="recording-dot" id="recDot"></div>
 
 <div class="main">
   <div class="start-screen" id="startScreen">
-    <h2>📹 → ASCII</h2>
-    <p>Your webcam, rendered in text characters in real-time.</p>
+    <h2>📹 → <span class="grad">ASCII</span></h2>
+    <p>Your webcam, rendered in text — 60 fps, 6 character ramps, 4 effects.</p>
     <button class="start-btn" onclick="startWebcam()">Start Camera</button>
+    <div class="kbd-hints">
+      <kbd>S</kbd> snap · <kbd>C</kbd> copy · <kbd>R</kbd> record · <kbd>F</kbd> fullscreen · <kbd>T</kbd> theme · <kbd>H</kbd> hide UI · <kbd>I</kbd> invert · <kbd>M</kbd> color/mono
+    </div>
   </div>
-  
-  <pre id="asciiOutput" style="display: none;"></pre>
+  <pre id="asciiOutput" style="display:none"></pre>
 </div>
 
-<video id="video" autoplay playsinline></video>
-<canvas id="hiddenCanvas" style="display:none;"></canvas>
+<video id="video" autoplay playsinline muted></video>
+<canvas id="hiddenCanvas" style="display:none"></canvas>
+<canvas id="recordCanvas" style="display:none"></canvas>
 
-<div class="fps" id="fps"></div>
-
-<script>
-const video = document.getElementById('video');
-const hiddenCanvas = document.getElementById('hiddenCanvas');
-const hCtx = hiddenCanvas.getContext('2d', { willReadFrequently: true });
-const output = document.getElementById('asciiOutput');
-
-const charRamps = {
-  simple:   ' .:-=+*#%@',
-  detailed: ' .\'`^",:;Il!i><~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$',
-  blocks:   ' ░▒▓█',
-  minimal:  ' .:░▓█'
-};
-
-let colorMode = true;
-let invertMode = false;
-let lightTheme = false;
-let running = false;
-let cols = 100;
-
-let lastTime = performance.now();
-let frameCount = 0;
-
-async function startWebcam() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }
-    });
-    
-    video.srcObject = stream;
-    await video.play();
-    
-    document.getElementById('startScreen').style.display = 'none';
-    document.getElementById('toolbar').style.display = '';
-    output.style.display = '';
-    
-    running = true;
-    requestAnimationFrame(render);
-    
-  } catch (err) {
-    document.getElementById('startScreen').innerHTML = `
-      <div class="error-msg">
-        <p>📹 Camera access denied or unavailable.</p>
-        <p style="font-size: 14px; margin-top: 12px; color: var(--muted);">
-          Please allow camera access and reload the page.
-        </p>
-      </div>
-    `;
-  }
-}
-
-function render() {
-  if (!running) return;
-  
-  const ramp = charRamps[document.getElementById('charRamp').value];
-  cols = parseInt(document.getElementById('resolution').value);
-  
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
-  if (vw === 0 || vh === 0) {
-    requestAnimationFrame(render);
-    return;
-  }
-  
-  // Char aspect ratio correction (chars are ~2x taller than wide)
-  const aspect = vw / vh;
-  const rows = Math.floor(cols / aspect * 0.5);
-  
-  hiddenCanvas.width = cols;
-  hiddenCanvas.height = rows;
-  
-  // Mirror horizontally for selfie effect
-  hCtx.save();
-  hCtx.translate(cols, 0);
-  hCtx.scale(-1, 1);
-  hCtx.drawImage(video, 0, 0, cols, rows);
-  hCtx.restore();
-  
-  const imageData = hCtx.getImageData(0, 0, cols, rows);
-  const pixels = imageData.data;
-  
-  let ascii = '';
-  
-  if (colorMode) {
-    // Color mode with spans
-    let html = '';
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        const idx = (y * cols + x) * 4;
-        let r = pixels[idx], g = pixels[idx+1], b = pixels[idx+2];
-        
-        const brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-        const adjustedBrightness = invertMode ? 1 - brightness : brightness;
-        
-        const charIdx = Math.floor(adjustedBrightness * (ramp.length - 1));
-        const ch = ramp[charIdx] === ' ' ? '&nbsp;' : escapeHtml(ramp[charIdx]);
-        
-        html += `<span style="color:rgb(${r},${g},${b})">${ch}</span>`;
-      }
-      html += '\n';
-    }
-    output.innerHTML = html;
-  } else {
-    // Monochrome mode
-    for (let y = 0; y < rows; y++) {
-      for (let x = 0; x < cols; x++) {
-        const idx = (y * cols + x) * 4;
-        const brightness = (0.299 * pixels[idx] + 0.587 * pixels[idx+1] + 0.114 * pixels[idx+2]) / 255;
-        const adjustedBrightness = invertMode ? 1 - brightness : brightness;
-        const charIdx = Math.floor(adjustedBrightness * (ramp.length - 1));
-        ascii += ramp[charIdx];
-      }
-      ascii += '\n';
-    }
-    output.textContent = ascii;
-  }
-  
-  // FPS counter
-  frameCount++;
-  const now = performance.now();
-  if (now - lastTime >= 1000) {
-    document.getElementById('fps').textContent = `${frameCount} FPS`;
-    frameCount = 0;
-    lastTime = now;
-  }
-  
-  // Adjust font size to fit
-  const mainEl = document.querySelector('.main');
-  const maxW = mainEl.clientWidth - 20;
-  const charW = maxW / cols;
-  output.style.fontSize = Math.max(3, Math.min(14, charW)) + 'px';
-  output.style.lineHeight = Math.max(3, Math.min(14, charW)) * 0.95 + 'px';
-  
-  requestAnimationFrame(render);
-}
-
-function escapeHtml(c) {
-  if (c === '<') return '&lt;';
-  if (c === '>') return '&gt;';
-  if (c === '&') return '&amp;';
-  return c;
-}
-
-function toggleColor() {
-  colorMode = !colorMode;
-  const btn = document.getElementById('colorBtn');
-  btn.classList.toggle('btn-active', colorMode);
-  btn.textContent = colorMode ? 'Color' : 'Mono';
-}
-
-function toggleInvert() {
-  invertMode = !invertMode;
-  const btn = document.getElementById('invertBtn');
-  btn.classList.toggle('btn-active', invertMode);
-}
-
-function toggleTheme() {
-  lightTheme = !lightTheme;
-  document.body.classList.toggle('light', lightTheme);
-  document.getElementById('themeBtn').textContent = lightTheme ? '🌙 Dark' : '☀ Light';
-}
-
-document.getElementById('resolution').addEventListener('input', e => {
-  document.getElementById('resVal').textContent = e.target.value;
-});
-</script>
+<script src="app.js"></script>
 </body>
 </html>
