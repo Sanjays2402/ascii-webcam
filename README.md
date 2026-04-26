@@ -1,5 +1,4 @@
-# ASCII Webcam 📹
-
+# ASCII Webcam 
 Your webcam feed converted to ASCII art in real-time.
 
 ![Screenshot](screenshot.png)
